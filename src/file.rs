@@ -8,10 +8,11 @@ use std::io::ErrorKind;
 pub struct FileSource {
     source: PathBuf,
     frame_size: (u32, u32),
+    frame_rate: u32,
 }
 
 impl FileSource {
-    pub fn new(source: &Path, frame_size: (u32, u32)) -> Result<Self, CaptureError> {
+    pub fn new(source: &Path, frame_size: (u32, u32), frame_rate: u32) -> Result<Self, CaptureError> {
         let source = fs::canonicalize(source)?;
         if !source.exists() {
             return Err(CaptureError::IoError(io::Error::new(ErrorKind::NotFound, "File not found")));
@@ -19,6 +20,7 @@ impl FileSource {
         Ok(Self {
             source,
             frame_size,
+            frame_rate
         })
     }
 }
@@ -29,10 +31,11 @@ impl IntoIterator for FileSource {
 
     fn into_iter(self) -> Self::IntoIter {
         let pipeline_description = format!(
-            "uridecodebin uri=\"file://{}\" ! videoconvert ! videoscale ! capsfilter caps=\"video/x-raw, width={}, height={}\"",
+            "uridecodebin uri=\"file://{}\" ! videoconvert ! videoscale ! videorate ! capsfilter caps=\"video/x-raw, width={}, height={}, framerate={}/1\"",
             self.source.to_string_lossy(),
             self.frame_size.0,
-            self.frame_size.1
+            self.frame_size.1,
+            self.frame_rate
         );
         VideoStream::new(pipeline_description).into_iter()
     }
